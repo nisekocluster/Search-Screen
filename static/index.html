@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09131f">
+<title>Pickup Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Same palette and type as the Ski Valet kiosk. */
+:root{
+  --night:#09131f; --slab:#132333; --slab2:#1a3042; --line:#2b4357;
+  --frost:#f1f7fc; --mist:#a8bdcf; --dim:#71899e;
+  --signal:#FF6A2B; --signal-d:#E2551A; --glacier:#5EC8F2; --ok:#35C36A; --bad:#FF4D4D; --warn:#FFB020;
+  --r:18px; --r-s:12px;
+  --display:"Barlow Condensed", "Oswald", Impact, sans-serif;
+  --body:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; min-height:100%}
+body{background:var(--night); color:var(--frost); font-family:var(--body);
+  touch-action:manipulation; display:flex; flex-direction:column; min-height:100dvh}
+[hidden]{display:none !important}
+button{font:inherit; color:inherit; cursor:pointer; border:0; background:none}
+button:disabled{opacity:.45; cursor:default}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--glacier); outline-offset:2px}
+
+.top{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px;
+  border-bottom:1px solid var(--line); background:var(--slab)}
+.top h1{margin:0; font:700 28px/1 var(--display); letter-spacing:.02em; text-transform:uppercase}
+.top-count{color:var(--mist); font-size:16px; font-weight:600; white-space:nowrap}
+
+.btn{display:flex; align-items:center; justify-content:center; min-height:56px; padding:10px 20px; width:100%;
+  border-radius:var(--r-s); font:700 24px/1 var(--display); letter-spacing:.03em; text-transform:uppercase}
+.btn-primary{background:var(--signal); color:#1b0c04}
+.btn-primary:active:not(:disabled){background:var(--signal-d)}
+.btn-ok{background:var(--ok); color:#04170b}
+.btn-ok:active:not(:disabled){filter:brightness(.88)}
+
+.offline{background:var(--bad); color:#fff; text-align:center; font-weight:700; padding:10px 16px}
+
+.toasts{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:20;
+  display:flex; flex-direction:column; gap:8px; width:min(480px, calc(100vw - 32px))}
+.toast{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 10px 10px 18px;
+  background:var(--frost); color:var(--night); border-radius:var(--r-s); font-weight:600;
+  box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.toast span{overflow-wrap:anywhere}
+.toast-undo{flex:none; padding:10px 18px; min-height:44px; background:var(--night); color:var(--frost);
+  border-radius:8px; font-weight:700}
+
+.login{position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:16px;
+  background:var(--night)}
+.login-card{width:min(340px, 100%); padding:24px; background:var(--slab); border:1px solid var(--line); border-radius:var(--r)}
+.login-card h2{margin:0 0 16px; font:700 32px/1 var(--display); text-transform:uppercase}
+.login-input{width:100%; height:60px; padding:0 16px; font-size:26px; text-align:center; letter-spacing:.2em;
+  color:var(--frost); background:var(--night); border:1px solid var(--line); border-radius:var(--r-s)}
+.login-error{min-height:22px; margin:8px 0; color:var(--bad); font-weight:600; font-size:15px}
+
+.home{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px 16px}
+.home h1{margin:0 0 8px; font:700 44px/1 var(--display); text-transform:uppercase; text-align:center}
+.home a{display:block; width:min(440px, 100%); padding:22px 24px; background:var(--slab); border:1px solid var(--line);
+  border-radius:var(--r); color:var(--frost); text-decoration:none}
+.home a strong{display:block; font:700 30px/1.1 var(--display); text-transform:uppercase; color:var(--signal)}
+.home a span{color:var(--mist)}
+</style>
+</head>
+<body>
+<main class="home">
+  <h1>Pickup queue</h1>
+  <a href="/entry"><strong>Counter</strong><span>Enter the tag numbers guests bring</span></a>
+  <a href="/staff"><strong>Back room</strong><span>See the numbers and find the equipment</span></a>
+</main>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#132333">
+<title>Pickup Back Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Same palette and type as the Ski Valet kiosk. */
+:root{
+  --night:#09131f; --slab:#132333; --slab2:#1a3042; --line:#2b4357;
+  --frost:#f1f7fc; --mist:#a8bdcf; --dim:#71899e;
+  --signal:#FF6A2B; --signal-d:#E2551A; --glacier:#5EC8F2; --ok:#35C36A; --bad:#FF4D4D; --warn:#FFB020;
+  --r:18px; --r-s:12px;
+  --display:"Barlow Condensed", "Oswald", Impact, sans-serif;
+  --body:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; min-height:100%}
+body{background:var(--night); color:var(--frost); font-family:var(--body);
+  touch-action:manipulation; display:flex; flex-direction:column; min-height:100dvh}
+[hidden]{display:none !important}
+button{font:inherit; color:inherit; cursor:pointer; border:0; background:none}
+button:disabled{opacity:.45; cursor:default}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--glacier); outline-offset:2px}
+
+.top{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px;
+  border-bottom:1px solid var(--line); background:var(--slab)}
+.top h1{margin:0; font:700 28px/1 var(--display); letter-spacing:.02em; text-transform:uppercase}
+.top-count{color:var(--mist); font-size:16px; font-weight:600; white-space:nowrap}
+
+.btn{display:flex; align-items:center; justify-content:center; min-height:56px; padding:10px 20px; width:100%;
+  border-radius:var(--r-s); font:700 24px/1 var(--display); letter-spacing:.03em; text-transform:uppercase}
+.btn-primary{background:var(--signal); color:#1b0c04}
+.btn-primary:active:not(:disabled){background:var(--signal-d)}
+.btn-ok{background:var(--ok); color:#04170b}
+.btn-ok:active:not(:disabled){filter:brightness(.88)}
+
+.offline{background:var(--bad); color:#fff; text-align:center; font-weight:700; padding:10px 16px}
+
+.toasts{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:20;
+  display:flex; flex-direction:column; gap:8px; width:min(480px, calc(100vw - 32px))}
+.toast{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 10px 10px 18px;
+  background:var(--frost); color:var(--night); border-radius:var(--r-s); font-weight:600;
+  box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.toast span{overflow-wrap:anywhere}
+.toast-undo{flex:none; padding:10px 18px; min-height:44px; background:var(--night); color:var(--frost);
+  border-radius:8px; font-weight:700}
+
+.login{position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:16px;
+  background:var(--night)}
+.login-card{width:min(340px, 100%); padding:24px; background:var(--slab); border:1px solid var(--line); border-radius:var(--r)}
+.login-card h2{margin:0 0 16px; font:700 32px/1 var(--display); text-transform:uppercase}
+.login-input{width:100%; height:60px; padding:0 16px; font-size:26px; text-align:center; letter-spacing:.2em;
+  color:var(--frost); background:var(--night); border:1px solid var(--line); border-radius:var(--r-s)}
+.login-error{min-height:22px; margin:8px 0; color:var(--bad); font-weight:600; font-size:15px}
+
+.board{flex:1; padding:16px 16px 96px; display:grid; gap:14px; align-content:start;  /* room for the Undo bar */
+  grid-template-columns:repeat(auto-fill, minmax(min(300px, 100%), 1fr))}
+.card{display:flex; flex-direction:column; gap:12px; padding:14px; background:var(--slab);
+  border:2px solid var(--line); border-radius:var(--r)}
+.card.warn{border-color:var(--warn)}
+.card.late{border-color:var(--bad)}
+.card.is-new{animation:arrive 1.6s ease-out}
+@keyframes arrive{0%{background:var(--signal)} 100%{background:var(--slab)}}
+@media (prefers-reduced-motion:reduce){.card.is-new{animation:none}}
+.card-head{display:flex; justify-content:space-between; align-items:center; gap:10px}
+.card-pos{font:700 22px/1 var(--display); color:var(--mist)}
+.card:first-child .card-pos{color:var(--signal)}
+.card .time{font-size:17px}
+.tags{flex:1; display:flex; flex-wrap:wrap; gap:8px}
+.tag{flex:1 1 auto; min-width:0; padding:4px 10px; text-align:center; font:700 76px/1.05 var(--display);
+  font-variant-numeric:tabular-nums; letter-spacing:.02em}
+.tag-tap{background:var(--slab2); border:1px solid var(--line); border-radius:var(--r-s); font-size:56px}
+.tag-tap:active{background:var(--line)}
+.card-hint{margin:0; color:var(--dim); font-size:13px; text-align:center}
+.board-empty{grid-column:1 / -1; text-align:center; padding:12vh 16px; color:var(--dim);
+  font:600 34px/1.2 var(--display); text-transform:uppercase; letter-spacing:.03em}
+
+@media (max-width:760px){
+  .top{padding:12px 16px}
+  .toasts{bottom:12px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Back room</h1>
+  <span class="top-count" id="count"></span>
+</header>
+<main class="board" id="board"></main>
+<script>
+/* Shared by the counter and back-room screens: API calls, PIN sign-in, polling, undo. */
+const POLL_MS = 2000;
+const UNDO_MS = 12000;
+
+class ApiError extends Error {
+  constructor(status, data) {
+    super((data && data.error) || "No connection");
+    this.status = status;
+    this.data = data || {};
+  }
+}
+
+async function api(path, body) {
+  let resp;
+  try {
+    resp = await fetch(path, body === undefined ? {} : {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new ApiError(0);
+  }
+  const data = await resp.json().catch(() => null);
+  if (resp.status === 401) showLogin();
+  if (!resp.ok) throw new ApiError(resp.status, data);
+  return data;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function newGroupId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* Tags sent together (one guest) become one group, oldest group first. */
+function groupItems(items) {
+  const groups = new Map();
+  for (const item of items) {
+    if (!groups.has(item.group_id)) {
+      groups.set(item.group_id, { id: item.group_id, created_at: item.created_at, items: [] });
+    }
+    groups.get(item.group_id).items.push(item);
+  }
+  return [...groups.values()];
+}
+
+function waitText(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  return minutes < 1 ? "just now" : minutes + " min";
+}
+
+/* --- Sign-in ------------------------------------------------------------- */
+
+function showLogin() {
+  if (document.getElementById("login")) return;
+  const box = el("form", "login");
+  box.id = "login";
+  const card = el("div", "login-card");
+  const input = el("input", "login-input");
+  input.type = "password";
+  input.inputMode = "numeric";
+  input.autocomplete = "off";
+  input.placeholder = "PIN";
+  input.setAttribute("aria-label", "Staff PIN");
+  const error = el("p", "login-error");
+  error.setAttribute("role", "alert");
+  card.append(el("h2", "", "Staff PIN"), input, error, el("button", "btn btn-primary", "Sign in"));
+  box.append(card);
+  box.addEventListener("submit", async event => {
+    event.preventDefault();
+    error.textContent = "";
+    try {
+      await api("/api/login", { pin: input.value });
+      box.remove();
+      refresh();
+    } catch (e) {
+      error.textContent = e.message;
+      input.value = "";
+      input.focus();
+    }
+  });
+  document.body.append(box);
+  input.focus();
+}
+
+/* --- Live queue ---------------------------------------------------------- */
+
+let onQueue = () => {};
+let actionCount = 0;
+let failures = 0;
+let pollTimer = null;
+let latestItems = [];
+
+function setOffline(offline) {
+  document.getElementById("offline").hidden = !offline;
+}
+
+async function refresh() {
+  clearTimeout(pollTimer);
+  const startedAt = actionCount;
+  try {
+    const data = await api("/api/queue");
+    failures = 0;
+    setOffline(false);
+    // A poll that left before a remove/send carries the old list: wait for the next one.
+    if (startedAt === actionCount) {
+      latestItems = data.items;
+      onQueue(data);
+    }
+  } catch (e) {
+    if (e.status !== 401 && ++failures >= 2) setOffline(true);
+  }
+  pollTimer = setTimeout(refresh, POLL_MS);
+}
+
+function startQueue(callback) {
+  onQueue = callback;
+  const banner = el("div", "offline", "No connection: this list may be out of date. Retrying…");
+  banner.id = "offline";
+  banner.setAttribute("role", "alert");
+  banner.hidden = true;
+  const undo = el("div", "toasts");
+  undo.id = "toasts";
+  undo.setAttribute("aria-live", "polite");
+  document.body.prepend(banner);
+  document.body.append(undo);
+  refresh();
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      refresh();
+      keepAwake();
+    }
+  });
+  keepAwake();
+}
+
+async function queueAction(path, body) {
+  actionCount++;
+  const result = await api(path, body);
+  actionCount++;
+  refresh();
+  return result;
+}
+
+/* Clears tags; an accidental tap can be undone for a few seconds, on any screen that did it. */
+async function removeTags(items) {
+  const ids = items.map(i => i.id);
+  await queueAction("/api/queue/remove", { ids });
+  showUndoToast(items);
+}
+
+function showUndoToast(items) {
+  const tags = items.map(i => i.tag).join(", ");
+  const toast = el("div", "toast");
+  const undo = el("button", "toast-undo", "Undo");
+  undo.type = "button";
+  toast.append(el("span", "", "Cleared " + tags), undo);
+  const timer = setTimeout(() => toast.remove(), UNDO_MS);
+  undo.addEventListener("click", async () => {
+    clearTimeout(timer);
+    undo.disabled = true;
+    try {
+      const result = await queueAction("/api/queue/restore", { ids: items.map(i => i.id) });
+      if (result.skipped.length) {
+        toast.firstChild.textContent = "Already back in the queue: " + result.skipped.join(", ");
+        setTimeout(() => toast.remove(), 5000);
+      } else {
+        toast.remove();
+      }
+    } catch (e) {
+      toast.firstChild.textContent = "Could not undo: " + e.message;
+      undo.disabled = false;
+    }
+  });
+  document.getElementById("toasts").append(toast);
+}
+
+/* A tablet that goes to sleep stops showing new numbers. Needs HTTPS; harmless where unsupported. */
+async function keepAwake() {
+  try {
+    await navigator.wakeLock.request("screen");
+  } catch (e) {}
+}
+</script>
+<script>
+const WARN_MIN = 5, LATE_MIN = 10;
+
+const board = document.getElementById("board");
+const cards = new Map();
+const emptyNote = el("div", "board-empty", "No pickups waiting");
+let firstRender = true;
+
+function clearButton(button, items, labelWhileFailed) {
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      await removeTags(items);
+    } catch (e) {
+      button.disabled = false;
+      if (e.status !== 401) alert("Could not clear " + labelWhileFailed + ": " + e.message);
+    }
+  });
+}
+
+function buildCard(group) {
+  const card = el("article", "card");
+  const head = el("div", "card-head");
+  const pos = el("span", "card-pos");
+  const time = el("span", "time");
+  head.append(pos, time);
+
+  const tags = el("div", "tags");
+  const several = group.items.length > 1;
+  group.items.forEach(item => {
+    if (several) {
+      const tag = el("button", "tag tag-tap", item.tag);
+      tag.type = "button";
+      tag.setAttribute("aria-label", "Delivered tag " + item.tag + " only");
+      clearButton(tag, [item], "tag " + item.tag);
+      tags.append(tag);
+    } else {
+      tags.append(el("div", "tag", item.tag));
+    }
+  });
+
+  const done = el("button", "btn btn-ok", several ? "Delivered all " + group.items.length : "Delivered");
+  done.type = "button";
+  clearButton(done, group.items, "these tags");
+
+  card.append(head, tags);
+  if (several) card.append(el("p", "card-hint", "Tap a number if only that one was delivered"));
+  card.append(done);
+  card.pos = pos;
+  card.time = time;
+  card.itemsKey = group.items.map(item => item.id).join();
+  return card;
+}
+
+/* Cards are kept between polls so that a tap in progress is never lost to a redraw. */
+function render(data) {
+  const groups = groupItems(data.items);
+  const total = data.items.length;
+  document.getElementById("count").textContent =
+    total + (total === 1 ? " tag" : " tags") + " · " + groups.length + (groups.length === 1 ? " guest" : " guests");
+
+  const alive = new Set(groups.map(group => group.id));
+  for (const [id, card] of cards) {
+    if (!alive.has(id)) {
+      card.remove();
+      cards.delete(id);
+    }
+  }
+
+  if (groups.length) emptyNote.remove();
+  else if (!emptyNote.isConnected) board.append(emptyNote);
+
+  groups.forEach((group, index) => {
+    const key = group.items.map(item => item.id).join();
+    let card = cards.get(group.id);
+    if (!card || card.itemsKey !== key) {
+      const wasShown = Boolean(card);
+      const fresh = buildCard(group);
+      if (card) card.replaceWith(fresh);
+      else if (!firstRender) fresh.classList.add("is-new");
+      cards.set(group.id, fresh);
+      card = fresh;
+      if (wasShown) card.classList.remove("is-new");
+    }
+    if (board.children[index] !== card) board.insertBefore(card, board.children[index] || null);
+    card.pos.textContent = index === 0 ? "Next" : "#" + (index + 1);
+    const seconds = data.now - group.created_at;
+    card.time.textContent = waitText(seconds);
+    const minutes = seconds / 60;
+    card.classList.toggle("late", minutes >= LATE_MIN);
+    card.classList.toggle("warn", minutes >= WARN_MIN && minutes < LATE_MIN);
+  });
+  firstRender = false;
+}
+
+startQueue(render);
+</script>
+</body>
+</html>

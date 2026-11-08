@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#132333">
+<title>Pickup Counter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Same palette and type as the Ski Valet kiosk. */
+:root{
+  --night:#09131f; --slab:#132333; --slab2:#1a3042; --line:#2b4357;
+  --frost:#f1f7fc; --mist:#a8bdcf; --dim:#71899e;
+  --signal:#FF6A2B; --signal-d:#E2551A; --glacier:#5EC8F2; --ok:#35C36A; --bad:#FF4D4D; --warn:#FFB020;
+  --r:18px; --r-s:12px;
+  --display:"Barlow Condensed", "Oswald", Impact, sans-serif;
+  --body:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; min-height:100%}
+body{background:var(--night); color:var(--frost); font-family:var(--body);
+  touch-action:manipulation; display:flex; flex-direction:column; min-height:100dvh}
+[hidden]{display:none !important}
+button{font:inherit; color:inherit; cursor:pointer; border:0; background:none}
+button:disabled{opacity:.45; cursor:default}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--glacier); outline-offset:2px}
+
+.top{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px;
+  border-bottom:1px solid var(--line); background:var(--slab)}
+.top h1{margin:0; font:700 28px/1 var(--display); letter-spacing:.02em; text-transform:uppercase}
+.top-count{color:var(--mist); font-size:16px; font-weight:600; white-space:nowrap}
+
+.btn{display:flex; align-items:center; justify-content:center; min-height:56px; padding:10px 20px; width:100%;
+  border-radius:var(--r-s); font:700 24px/1 var(--display); letter-spacing:.03em; text-transform:uppercase}
+.btn-primary{background:var(--signal); color:#1b0c04}
+.btn-primary:active:not(:disabled){background:var(--signal-d)}
+.btn-primary:disabled{opacity:1; background:var(--slab2); color:var(--mist)}
+.btn-ok{background:var(--ok); color:#04170b}
+.btn-ok:active:not(:disabled){filter:brightness(.88)}
+
+.offline{background:var(--bad); color:#fff; text-align:center; font-weight:700; padding:10px 16px}
+
+.toasts{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:20;
+  display:flex; flex-direction:column; gap:8px; width:min(480px, calc(100vw - 32px))}
+.toast{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 10px 10px 18px;
+  background:var(--frost); color:var(--night); border-radius:var(--r-s); font-weight:600;
+  box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.toast span{overflow-wrap:anywhere}
+.toast-undo{flex:none; padding:10px 18px; min-height:44px; background:var(--night); color:var(--frost);
+  border-radius:8px; font-weight:700}
+
+.login{position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; padding:16px;
+  background:var(--night)}
+.login-card{width:min(340px, 100%); padding:24px; background:var(--slab); border:1px solid var(--line); border-radius:var(--r)}
+.login-card h2{margin:0 0 16px; font:700 32px/1 var(--display); text-transform:uppercase}
+.login-input{width:100%; height:60px; padding:0 16px; font-size:26px; text-align:center; letter-spacing:.2em;
+  color:var(--frost); background:var(--night); border:1px solid var(--line); border-radius:var(--r-s)}
+.login-error{min-height:22px; margin:8px 0; color:var(--bad); font-weight:600; font-size:15px}
+
+.entry{flex:1; display:grid; grid-template-columns:minmax(300px, 440px) minmax(0, 1fr); gap:20px; padding:20px;
+  min-height:0}
+.pad-side{display:flex; flex-direction:column; gap:12px; min-width:0}
+.display{height:92px; display:flex; align-items:center; justify-content:center; background:var(--night);
+  border:2px solid var(--line); border-radius:var(--r-s); font:700 68px/1 var(--display); letter-spacing:.04em;
+  font-variant-numeric:tabular-nums}
+.display.empty{color:var(--dim); font-size:26px; letter-spacing:.02em; font-weight:500}
+.pad{flex:1; display:grid; grid-template-columns:repeat(3, 1fr); grid-auto-rows:minmax(62px, 1fr); gap:10px}
+.key{background:var(--slab2); border:1px solid var(--line); border-radius:var(--r-s);
+  font:600 38px/1 var(--display); font-variant-numeric:tabular-nums}
+.key:active{background:var(--line)}
+.key-add{background:var(--glacier); border-color:var(--glacier); color:#04202e; font-size:24px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.03em}
+.key-add:active{background:#49b2dc}
+
+.send-side{display:flex; flex-direction:column; gap:14px; min-width:0; min-height:0}
+.panel{background:var(--slab); border:1px solid var(--line); border-radius:var(--r); padding:16px}
+.panel h2{margin:0 0 10px; font:700 21px/1 var(--display); letter-spacing:.04em; text-transform:uppercase; color:var(--mist)}
+.chips{display:flex; flex-wrap:wrap; gap:8px; min-height:52px; align-items:flex-start}
+.hint{margin:0; color:var(--dim); line-height:1.4; font-size:15px; align-self:center}
+.chip{display:inline-flex; align-items:center; gap:10px; min-height:52px; padding:6px 14px; background:var(--slab2);
+  border:1px solid var(--line); border-radius:10px; font:700 30px/1 var(--display); font-variant-numeric:tabular-nums}
+.chip .x{color:var(--mist); font:600 18px/1 var(--body)}
+.chip:active{background:var(--line)}
+.message{min-height:24px; margin:10px 0; font-weight:600; font-size:16px}
+.message.bad{color:var(--bad)}
+.message.good{color:var(--ok)}
+.queue-panel{flex:1; display:flex; flex-direction:column; min-height:180px; overflow:hidden}
+.queue-list{flex:1; overflow-y:auto; margin:0; padding:0; list-style:none}
+.queue-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0;
+  border-top:1px solid var(--line)}
+.queue-row:first-child{border-top:0}
+.queue-tags{display:flex; flex-wrap:wrap; gap:6px; min-width:0}
+.queue-tags .chip{min-height:44px; padding:4px 12px; font-size:24px}
+.time{color:var(--mist); font-size:15px; font-weight:600; white-space:nowrap}
+.time.warn{color:var(--warn)}
+.time.late{color:var(--bad)}
+.empty-note{color:var(--dim); margin:0; padding:8px 0}
+
+/* On a tablet the keypad stays put and only the queue list scrolls. */
+@media (min-width:761px){
+  body{height:100dvh; overflow:hidden}
+  .queue-panel{min-height:0}
+}
+@media (max-width:760px){
+  .entry{grid-template-columns:1fr; padding:16px; gap:14px}
+  .pad{grid-auto-rows:66px}
+  .top{padding:12px 16px}
+  .toasts{bottom:12px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Counter</h1>
+  <span class="top-count" id="count"></span>
+</header>
+<main class="entry">
+  <section class="pad-side" aria-label="Tag number">
+    <div class="display empty" id="display" aria-live="polite"></div>
+    <div class="pad" id="pad"></div>
+  </section>
+  <section class="send-side">
+    <div class="panel">
+      <h2>This guest</h2>
+      <div class="chips" id="chips"></div>
+      <p class="message" id="message" role="status"></p>
+      <button class="btn btn-primary" id="send" type="button">Send</button>
+    </div>
+    <div class="panel queue-panel">
+      <h2>In the queue</h2>
+      <ul class="queue-list" id="queue"></ul>
+    </div>
+  </section>
+</main>
+<script>
+/* Shared by the counter and back-room screens: API calls, PIN sign-in, polling, undo. */
+const POLL_MS = 2000;
+const UNDO_MS = 12000;
+
+class ApiError extends Error {
+  constructor(status, data) {
+    super((data && data.error) || "No connection");
+    this.status = status;
+    this.data = data || {};
+  }
+}
+
+async function api(path, body) {
+  let resp;
+  try {
+    resp = await fetch(path, body === undefined ? {} : {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new ApiError(0);
+  }
+  const data = await resp.json().catch(() => null);
+  if (resp.status === 401) showLogin();
+  if (!resp.ok) throw new ApiError(resp.status, data);
+  return data;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function newGroupId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* Tags sent together (one guest) become one group, oldest group first. */
+function groupItems(items) {
+  const groups = new Map();
+  for (const item of items) {
+    if (!groups.has(item.group_id)) {
+      groups.set(item.group_id, { id: item.group_id, created_at: item.created_at, items: [] });
+    }
+    groups.get(item.group_id).items.push(item);
+  }
+  return [...groups.values()];
+}
+
+function waitText(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  return minutes < 1 ? "just now" : minutes + " min";
+}
+
+/* --- Sign-in ------------------------------------------------------------- */
+
+function showLogin() {
+  if (document.getElementById("login")) return;
+  const box = el("form", "login");
+  box.id = "login";
+  const card = el("div", "login-card");
+  const input = el("input", "login-input");
+  input.type = "password";
+  input.inputMode = "numeric";
+  input.autocomplete = "off";
+  input.placeholder = "PIN";
+  input.setAttribute("aria-label", "Staff PIN");
+  const error = el("p", "login-error");
+  error.setAttribute("role", "alert");
+  card.append(el("h2", "", "Staff PIN"), input, error, el("button", "btn btn-primary", "Sign in"));
+  box.append(card);
+  box.addEventListener("submit", async event => {
+    event.preventDefault();
+    error.textContent = "";
+    try {
+      await api("/api/login", { pin: input.value });
+      box.remove();
+      refresh();
+    } catch (e) {
+      error.textContent = e.message;
+      input.value = "";
+      input.focus();
+    }
+  });
+  document.body.append(box);
+  input.focus();
+}
+
+/* --- Live queue ---------------------------------------------------------- */
+
+let onQueue = () => {};
+let actionCount = 0;
+let failures = 0;
+let pollTimer = null;
+let latestItems = [];
+
+function setOffline(offline) {
+  document.getElementById("offline").hidden = !offline;
+}
+
+async function refresh() {
+  clearTimeout(pollTimer);
+  const startedAt = actionCount;
+  try {
+    const data = await api("/api/queue");
+    failures = 0;
+    setOffline(false);
+    // A poll that left before a remove/send carries the old list: wait for the next one.
+    if (startedAt === actionCount) {
+      latestItems = data.items;
+      onQueue(data);
+    }
+  } catch (e) {
+    if (e.status !== 401 && ++failures >= 2) setOffline(true);
+  }
+  pollTimer = setTimeout(refresh, POLL_MS);
+}
+
+function startQueue(callback) {
+  onQueue = callback;
+  const banner = el("div", "offline", "No connection: this list may be out of date. Retrying…");
+  banner.id = "offline";
+  banner.setAttribute("role", "alert");
+  banner.hidden = true;
+  const undo = el("div", "toasts");
+  undo.id = "toasts";
+  undo.setAttribute("aria-live", "polite");
+  document.body.prepend(banner);
+  document.body.append(undo);
+  refresh();
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      refresh();
+      keepAwake();
+    }
+  });
+  keepAwake();
+}
+
+async function queueAction(path, body) {
+  actionCount++;
+  const result = await api(path, body);
+  actionCount++;
+  refresh();
+  return result;
+}
+
+/* Clears tags; an accidental tap can be undone for a few seconds, on any screen that did it. */
+async function removeTags(items) {
+  const ids = items.map(i => i.id);
+  await queueAction("/api/queue/remove", { ids });
+  showUndoToast(items);
+}
+
+function showUndoToast(items) {
+  const tags = items.map(i => i.tag).join(", ");
+  const toast = el("div", "toast");
+  const undo = el("button", "toast-undo", "Undo");
+  undo.type = "button";
+  toast.append(el("span", "", "Cleared " + tags), undo);
+  const timer = setTimeout(() => toast.remove(), UNDO_MS);
+  undo.addEventListener("click", async () => {
+    clearTimeout(timer);
+    undo.disabled = true;
+    try {
+      const result = await queueAction("/api/queue/restore", { ids: items.map(i => i.id) });
+      if (result.skipped.length) {
+        toast.firstChild.textContent = "Already back in the queue: " + result.skipped.join(", ");
+        setTimeout(() => toast.remove(), 5000);
+      } else {
+        toast.remove();
+      }
+    } catch (e) {
+      toast.firstChild.textContent = "Could not undo: " + e.message;
+      undo.disabled = false;
+    }
+  });
+  document.getElementById("toasts").append(toast);
+}
+
+/* A tablet that goes to sleep stops showing new numbers. Needs HTTPS; harmless where unsupported. */
+async function keepAwake() {
+  try {
+    await navigator.wakeLock.request("screen");
+  } catch (e) {}
+}
+</script>
+<script>
+const MAX_DIGITS = 6;
+const MAX_TAGS = 20;
+const WARN_MIN = 5, LATE_MIN = 10;
+
+let draft = "";
+let chips = [];
+let groupId = newGroupId();
+let sending = false;
+let queueKey = null;
+
+const $ = id => document.getElementById(id);
+
+function inQueue(tag) {
+  return latestItems.some(item => item.tag === tag);
+}
+
+function say(text, kind) {
+  $("message").textContent = text || "";
+  $("message").className = "message " + (kind || "");
+}
+
+function renderDraft() {
+  $("display").textContent = draft || "Enter tag number";
+  $("display").classList.toggle("empty", !draft);
+  $("send").disabled = sending || (!draft && !chips.length);
+}
+
+function renderChips() {
+  const box = $("chips");
+  box.replaceChildren();
+  if (!chips.length) box.append(el("p", "hint", "Several tags for one guest? Tap Add after each."));
+  chips.forEach(tag => {
+    const chip = el("button", "chip", tag);
+    chip.type = "button";
+    chip.setAttribute("aria-label", "Remove tag " + tag);
+    chip.append(el("span", "x", "✕"));
+    chip.addEventListener("click", () => {
+      chips = chips.filter(t => t !== tag);
+      groupId = newGroupId();
+      renderChips();
+      renderDraft();
+    });
+    box.append(chip);
+  });
+}
+
+/* Moves the typed number to this guest's list. False if it cannot go there. */
+function addDraft() {
+  if (!draft) return true;
+  const tag = draft;
+  if (inQueue(tag)) {
+    say("Tag " + tag + " is already in the queue.", "bad");
+    draft = "";
+    renderDraft();
+    return false;
+  }
+  draft = "";
+  if (chips.includes(tag)) {
+    say("Tag " + tag + " is already on this guest.", "bad");
+    renderDraft();
+    return true;
+  }
+  if (chips.length >= MAX_TAGS) {
+    say("Up to " + MAX_TAGS + " tags at a time. Send these first.", "bad");
+    renderDraft();
+    return false;
+  }
+  chips.push(tag);
+  groupId = newGroupId();
+  say("");
+  renderChips();
+  renderDraft();
+  return true;
+}
+
+async function send() {
+  if (sending || !addDraft() || !chips.length) return;
+  sending = true;
+  renderDraft();
+  const tags = chips.slice();
+  try {
+    await queueAction("/api/queue", { group_id: groupId, tags });
+    chips = [];
+    groupId = newGroupId();
+    say("Sent: " + tags.join(", "), "good");
+  } catch (e) {
+    if (e.status === 409) {
+      const duplicates = e.data.duplicates || [];
+      chips = chips.filter(tag => !duplicates.includes(tag));
+      groupId = newGroupId();
+      say("Already in the queue: " + duplicates.join(", ") + "." +
+          (chips.length ? " The others were not sent yet: tap Send." : ""), "bad");
+    } else if (e.status !== 401) {
+      say(e.status ? e.message : "No connection. Nothing was sent: tap Send again.", "bad");
+    }
+  }
+  sending = false;
+  renderChips();
+  renderDraft();
+}
+
+function press(key) {
+  if (key === "back") {
+    draft = draft.slice(0, -1);
+  } else if (key === "add") {
+    addDraft();
+  } else if (draft.length < MAX_DIGITS) {
+    draft += key;
+    say("");
+  }
+  renderDraft();
+}
+
+["1", "2", "3", "4", "5", "6", "7", "8", "9", "back", "0", "add"].forEach(key => {
+  const label = key === "back" ? "⌫" : key === "add" ? "Add" : key;
+  const button = el("button", "key" + (key === "add" ? " key-add" : ""), label);
+  button.type = "button";
+  if (key === "back") button.setAttribute("aria-label", "Delete last digit");
+  button.addEventListener("click", () => {
+    press(key);
+    button.blur();      // so Enter on a hardware keyboard adds the number instead of pressing this key again
+  });
+  $("pad").append(button);
+});
+$("send").addEventListener("click", send);
+
+document.addEventListener("keydown", event => {
+  if (document.getElementById("login") || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (/^\d$/.test(event.key)) press(event.key);
+  else if (event.key === "Backspace") press("back");
+  else if (event.key === "Enter" && !(event.target instanceof HTMLButtonElement)) {
+    event.preventDefault();
+    draft ? press("add") : send();
+  }
+});
+
+function waitClass(minutes) {
+  return minutes >= LATE_MIN ? "late" : minutes >= WARN_MIN ? "warn" : "";
+}
+
+function renderQueue(data) {
+  const total = data.items.length;
+  $("count").textContent = total + (total === 1 ? " tag" : " tags") + " waiting";
+  const key = data.items.map(item => item.id).join();
+  if (key !== queueKey) {
+    queueKey = key;
+    const list = $("queue");
+    list.replaceChildren();
+    if (!total) list.append(el("li", "empty-note", "Queue is empty."));
+    groupItems(data.items).forEach(group => {
+      const row = el("li", "queue-row");
+      const tags = el("div", "queue-tags");
+      group.items.forEach(item => {
+        const chip = el("button", "chip", item.tag);
+        chip.type = "button";
+        chip.setAttribute("aria-label", "Clear tag " + item.tag + " from the queue");
+        chip.append(el("span", "x", "✕"));
+        chip.addEventListener("click", async () => {
+          chip.disabled = true;
+          try {
+            await removeTags([item]);
+          } catch (e) {
+            chip.disabled = false;
+            say("Could not clear " + item.tag + ": " + e.message, "bad");
+          }
+        });
+        tags.append(chip);
+      });
+      const time = el("span", "time");
+      time.dataset.created = group.created_at;
+      row.append(tags, time);
+      list.append(row);
+    });
+  }
+  document.querySelectorAll("#queue .time").forEach(time => {
+    const seconds = data.now - Number(time.dataset.created);
+    time.textContent = waitText(seconds);
+    time.className = "time " + waitClass(seconds / 60);
+  });
+}
+
+renderChips();
+renderDraft();
+startQueue(renderQueue);
+</script>
+</body>
+</html>
